@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: commerce-streamer
+  config:
+    import:
+      - classpath:jpa.yml
+      - classpath:redis.yml
+      - classpath:kafka.yml
