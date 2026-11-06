@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: if-i-were-a-server
+    folder: if-i-were-a-server
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

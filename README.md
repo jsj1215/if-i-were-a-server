@@ -72,6 +72,7 @@ interface CouponIssuer
 - Java 21, Spring Boot 3.5, Gradle (Kotlin DSL)
 - MySQL 8.0, Redis 7.4, Kafka 3.9 (KRaft)
 - JUnit 5, Testcontainers
+- Spring Boot Actuator, Micrometer, Prometheus 3.1, Grafana 11.4, k6
 
 ## 프로젝트 구조
 
@@ -83,9 +84,13 @@ if-i-were-a-server/
 ├── modules/
 │   ├── jpa/                 # MySQL, JPA 설정
 │   ├── redis/               # Redis 설정
-│   └── kafka/               # Kafka 설정
+│   ├── kafka/               # Kafka 설정
+│   └── monitoring/          # Actuator, Prometheus 지표 설정
 ├── docker/
-│   └── infra-compose.yml    # 로컬 인프라
+│   ├── infra-compose.yml    # 로컬 인프라, 모니터링, k6
+│   ├── prometheus/          # 지표 수집 설정
+│   └── grafana/             # 데이터소스, 대시보드
+├── load-test/               # k6 부하 테스트 스크립트
 └── docs/
     ├── what-if/             # Chapter 1 문서
     └── catch-me-if-you-can/ # Chapter 2 문서
@@ -97,7 +102,7 @@ if-i-were-a-server/
 # 1. 환경변수 파일 만들기 (비밀번호는 직접 채우기)
 cp .env.example .env
 
-# 2. 인프라 실행 (MySQL, Redis, Kafka)
+# 2. 인프라 실행 (MySQL, Redis, Kafka, Prometheus, Grafana)
 docker compose --env-file .env -f docker/infra-compose.yml up -d
 
 # 3. 앱 실행
@@ -106,3 +111,31 @@ set -a && source .env && set +a
 ```
 
 > 접속 정보는 코드에 두지 않고 모두 환경변수로 받습니다. `.env`는 git에 올라가지 않습니다.
+
+## 모니터링
+
+| 대상 | 주소 | 비고 |
+|---|---|---|
+| commerce-api | http://localhost:8080 | 지표: http://localhost:8081/actuator/prometheus |
+| commerce-streamer | http://localhost:8082 | 지표: http://localhost:8083/actuator/prometheus |
+| Prometheus | http://localhost:9090 | 5초마다 두 앱의 지표를 수집 |
+| Grafana | http://localhost:3000 | 아이디 `admin`, 비밀번호는 `.env`의 `GRAFANA_ADMIN_PASSWORD` |
+
+Grafana의 **"이 몸이 서버라면 - 서버 상태"** 대시보드에서 아래 지표를 한 화면에 봅니다.
+
+- HTTP: 초당 요청 수, 응답 시간 P95, P99
+- JVM 메모리, GC: 영역별 힙 사용량, GC 직후 Old Gen 사용량, GC 횟수와 정지 시간, 객체 할당 속도
+- 스레드, CPU: 스레드 상태별 개수, Tomcat 사용 중 스레드, CPU 사용률
+- HikariCP: 활성, 유휴, 대기 커넥션 수, 커넥션 획득 대기 시간
+- Kafka 컨슈머: 컨슈머 랙, 리밸런싱 횟수
+
+> 지표 포트(8081, 8083)는 API 포트와 분리했고 127.0.0.1에만 열립니다. Linux에서는 Prometheus 컨테이너가 접근할 수 있도록 `.env`에 `MANAGEMENT_ADDRESS=0.0.0.0`을 설정합니다.
+
+### 부하 테스트 (k6)
+
+```bash
+docker compose --env-file .env -f docker/infra-compose.yml --profile load run --rm k6 \
+  run -e TARGET_PATH=/api/v1/products/1 -e VUS=100 -e DURATION=1m /scripts/smoke.js
+```
+
+`TARGET_PATH`, `METHOD`, `VUS`, `DURATION` 환경변수로 대상 API와 부하 크기를 바꿉니다. 시나리오별 스크립트는 `load-test/`에 추가합니다.

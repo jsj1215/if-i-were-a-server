@@ -45,5 +45,43 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
 
+  # ---- 모니터링 ----
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: ifserver-prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    # Linux 에서도 host.docker.internal 로 호스트의 앱에 접근할 수 있게 한다.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: ifserver-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  # 부하 테스트 도구. 평소에는 뜨지 않고 `--profile load run` 으로 실행할 때만 쓴다.
+  k6:
+    image: grafana/k6:0.55.0
+    profiles: ["load"]
+    volumes:
+      - ../load-test:/scripts:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      BASE_URL: ${K6_BASE_URL:-http://host.docker.internal:8080}
+
 volumes:
   mysql-data:

@@ -1,0 +1,27 @@
+# JVM, GC, 스레드, HikariCP, Tomcat, Kafka 지표를 Prometheus 형식으로 노출한다.
+# actuator 는 앱 포트와 다른 관리 포트(management.server.port)에서만 열어 API 와 분리한다.
+management:
+  server:
+    # Docker Desktop(macOS, Windows)은 127.0.0.1 로도 Prometheus 컨테이너가 접근할 수 있다.
+    # Linux 에서는 MANAGEMENT_ADDRESS=0.0.0.0 으로 바꿔야 컨테이너에서 수집된다.
+    address: ${MANAGEMENT_ADDRESS:127.0.0.1}
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # 응답 시간 P95, P99 를 Grafana 에서 histogram_quantile 로 계산하기 위해 버킷을 남긴다.
+      percentiles-histogram:
+        http.server.requests: true
+
+server:
+  tomcat:
+    # Tomcat 스레드 지표(tomcat.threads.busy 등)를 수집하려면 켜야 한다.
+    mbeanregistry:
+      enabled: true

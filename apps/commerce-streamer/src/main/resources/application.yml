@@ -6,3 +6,11 @@ spring:
       - classpath:jpa.yml
       - classpath:redis.yml
       - classpath:kafka.yml
+      - classpath:monitoring.yml
+
+server:
+  port: 8082
+
+management:
+  server:
+    port: 8083

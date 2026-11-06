@@ -29,4 +29,5 @@ include(
     ":modules:jpa",
     ":modules:redis",
     ":modules:kafka",
+    ":modules:monitoring",
 )

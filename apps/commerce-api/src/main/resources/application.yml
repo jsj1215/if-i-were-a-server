@@ -6,6 +6,7 @@ spring:
       - classpath:jpa.yml
       - classpath:redis.yml
       - classpath:kafka.yml
+      - classpath:monitoring.yml
 
 server:
   port: 8080
@@ -13,3 +14,7 @@ server:
     # 에러 응답에 스택 트레이스나 내부 메시지가 노출되지 않도록 한다.
     include-stacktrace: never
     include-message: never
+
+management:
+  server:
+    port: 8081
